@@ -325,6 +325,26 @@ hb_coretext_get_glyph_extents (hb_font_t *font,
   return true;
 }
 
+struct glyph_path_apply_data {
+  unsigned int point_index;
+  unsigned int current_index;
+  hb_position_t *x;
+  hb_position_t *y;
+};
+
+void apply_glyph_path (void *info, const CGPathElement *element) {
+  glyph_path_apply_data *data = (glyph_path_apply_data *) info;
+
+  if (element->type != kCGPathElementCloseSubpath) {
+    if (data->current_index == data->point_index) {
+      *data->x = hb_position_t(element->points[0].x);
+      *data->y = hb_position_t(element->points[0].y);
+      return;
+    }
+    data->current_index++;
+  }
+}
+
 static hb_bool_t
 hb_coretext_get_glyph_contour_point (hb_font_t *font,
     void *font_data HB_UNUSED,
@@ -334,6 +354,16 @@ hb_coretext_get_glyph_contour_point (hb_font_t *font,
     hb_position_t *y,
     void *user_data HB_UNUSED)
 {
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+
+  CGPathRef path = CTFontCreatePathForGlyph(ct_font, glyph, NULL);
+  if (path) {
+    glyph_path_apply_data data = { point_index, 0, x, y };
+    CGPathApply(path, &data, apply_glyph_path);
+    CGPathRelease(path);
+    return data.current_index >= data.point_index;
+  }
+
   return false;
 }
 
@@ -354,7 +384,7 @@ hb_coretext_get_glyph_name (hb_font_t *font,
     return ret;
   }
 
-  return false;
+  return true;
 }
 
 static hb_bool_t

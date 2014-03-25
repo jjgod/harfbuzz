@@ -228,10 +228,10 @@ hb_coretext_get_glyph_h_advance (hb_font_t *font,
 {
   CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
 
-  const CGGlyph glyphs[] = { glyph };
+  const CGGlyph cg_glyph = glyph;
   CGSize advances[1];
   CTFontGetAdvancesForGlyphs(
-      ct_font, kCTFontHorizontalOrientation, glyphs, advances, 1);
+      ct_font, kCTFontHorizontalOrientation, &cg_glyph, advances, 1);
 
   return hb_position_t(advances[0].width);
 }
@@ -244,10 +244,10 @@ hb_coretext_get_glyph_v_advance (hb_font_t *font,
 {
   CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
 
-  const CGGlyph glyphs[] = { glyph };
+  const CGGlyph cg_glyph = glyph;
   CGSize advances[1];
   CTFontGetAdvancesForGlyphs(
-      ct_font, kCTFontHorizontalOrientation, glyphs, advances, 1);
+      ct_font, kCTFontHorizontalOrientation, &cg_glyph, advances, 1);
 
   return hb_position_t(advances[0].height);
 }
@@ -274,9 +274,9 @@ hb_coretext_get_glyph_v_origin (hb_font_t *font,
 {
   CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
 
-  const CGGlyph glyphs[] = { glyph };
+  const CGGlyph cg_glyph = glyph;
   CGRect rect = CTFontGetBoundingRectsForGlyphs(
-      ct_font, kCTFontHorizontalOrientation, glyphs, NULL, 1);
+      ct_font, kCTFontHorizontalOrientation, &cg_glyph, NULL, 1);
 
   *x = hb_position_t(rect.origin.x);
   *y = hb_position_t(rect.origin.y);
@@ -313,9 +313,9 @@ hb_coretext_get_glyph_extents (hb_font_t *font,
 {
   CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
 
-  const CGGlyph glyphs[] = { glyph };
+  const CGGlyph cg_glyph = glyph;
   CGRect rect = CTFontGetBoundingRectsForGlyphs(
-      ct_font, kCTFontHorizontalOrientation, glyphs, NULL, 1);
+      ct_font, kCTFontHorizontalOrientation, &cg_glyph, NULL, 1);
 
   extents->x_bearing = rect.origin.x;
   extents->y_bearing = rect.origin.y;

@@ -47,13 +47,15 @@ HB_BEGIN_DECLS
 hb_face_t *
 hb_coretext_face_create (CGFontRef cg_font);
 
-
 CGFontRef
 hb_coretext_face_get_cg_font (hb_face_t *face);
 
 CTFontRef
 hb_coretext_font_get_ct_font (hb_font_t *font);
 
+/* Makes an hb_font_t use Core Text internally to implement font functions. */
+void
+hb_coretext_font_set_funcs (hb_font_t *font);
 
 HB_END_DECLS
 

@@ -45,7 +45,7 @@ release_table_data (void *user_data)
 }
 
 static hb_blob_t *
-reference_table  (hb_face_t *face HB_UNUSED, hb_tag_t tag, void *user_data)
+reference_table (hb_face_t *face HB_UNUSED, hb_tag_t tag, void *user_data)
 {
   CGFontRef cg_font = reinterpret_cast<CGFontRef> (user_data);
   CFDataRef cf_data = CGFontCopyTableForTag (cg_font, tag);
@@ -204,6 +204,207 @@ hb_coretext_font_get_ct_font (hb_font_t *font)
   return font_data->ct_font;
 }
 
+static hb_bool_t
+hb_coretext_get_glyph (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t unicode,
+    hb_codepoint_t variation_selector,
+    hb_codepoint_t *glyph,
+    void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+  const UniChar characters[] = { unicode };
+  CGGlyph cg_glyph;
+  CTFontGetGlyphsForCharacters(ct_font, characters, &cg_glyph, 1);
+  *glyph = cg_glyph;
+  return *glyph != 0;
+}
+
+static hb_position_t
+hb_coretext_get_glyph_h_advance (hb_font_t *font,
+     void *font_data HB_UNUSED,
+     hb_codepoint_t glyph,
+     void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+
+  const CGGlyph glyphs[] = { glyph };
+  CGSize advances[1];
+  CTFontGetAdvancesForGlyphs(
+      ct_font, kCTFontHorizontalOrientation, glyphs, advances, 1);
+
+  return hb_position_t(advances[0].width);
+}
+
+static hb_position_t
+hb_coretext_get_glyph_v_advance (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph,
+    void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+
+  const CGGlyph glyphs[] = { glyph };
+  CGSize advances[1];
+  CTFontGetAdvancesForGlyphs(
+      ct_font, kCTFontHorizontalOrientation, glyphs, advances, 1);
+
+  return hb_position_t(advances[0].height);
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_h_origin (hb_font_t *font HB_UNUSED,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph HB_UNUSED,
+    hb_position_t *x HB_UNUSED,
+    hb_position_t *y HB_UNUSED,
+    void *user_data HB_UNUSED)
+{
+  /* We always work in the horizontal coordinates. */
+  return true;
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_v_origin (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph,
+    hb_position_t *x,
+    hb_position_t *y,
+    void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+
+  const CGGlyph glyphs[] = { glyph };
+  CGRect rect = CTFontGetBoundingRectsForGlyphs(
+      ct_font, kCTFontHorizontalOrientation, glyphs, NULL, 1);
+
+  *x = hb_position_t(rect.origin.x);
+  *y = hb_position_t(rect.origin.y);
+
+  return true;
+}
+
+static hb_position_t
+hb_coretext_get_glyph_h_kerning (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t left_glyph,
+    hb_codepoint_t right_glyph,
+    void *user_data HB_UNUSED)
+{
+  return 0;
+}
+
+static hb_position_t
+hb_coretext_get_glyph_v_kerning (hb_font_t *font HB_UNUSED,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t top_glyph HB_UNUSED,
+    hb_codepoint_t bottom_glyph HB_UNUSED,
+    void *user_data HB_UNUSED)
+{
+  return 0;
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_extents (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph,
+    hb_glyph_extents_t *extents,
+    void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+
+  const CGGlyph glyphs[] = { glyph };
+  CGRect rect = CTFontGetBoundingRectsForGlyphs(
+      ct_font, kCTFontHorizontalOrientation, glyphs, NULL, 1);
+
+  extents->x_bearing = rect.origin.x;
+  extents->y_bearing = rect.origin.y;
+  extents->width = rect.size.width;
+  extents->height = rect.size.height;
+
+  return true;
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_contour_point (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph,
+    unsigned int point_index,
+    hb_position_t *x,
+    hb_position_t *y,
+    void *user_data HB_UNUSED)
+{
+  return false;
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_name (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    hb_codepoint_t glyph,
+    char *name, unsigned int size,
+    void *user_data HB_UNUSED)
+{
+  CGFontRef cg_font = hb_coretext_face_get_cg_font(font->face);
+
+  CFStringRef cf_name_str = CGFontCopyGlyphNameForGlyph(cg_font, glyph);
+  if (name) {
+    hb_bool_t ret =
+        CFStringGetCString(cf_name_str, name, size, kCFStringEncodingUTF8);
+    CFRelease(name);
+    return ret;
+  }
+
+  return false;
+}
+
+static hb_bool_t
+hb_coretext_get_glyph_from_name (hb_font_t *font,
+    void *font_data HB_UNUSED,
+    const char *name, int len, /* -1 means nul-terminated */
+    hb_codepoint_t *glyph,
+    void *user_data HB_UNUSED)
+{
+  CTFontRef ct_font = hb_coretext_font_get_ct_font(font);
+  CFStringRef cf_name_str;
+  if (len == -1) {
+    cf_name_str = CFStringCreateWithCString(NULL, name, kCFStringEncodingUTF8);
+  } else {
+    cf_name_str = CFStringCreateWithBytes(
+        NULL, (const UInt8*) name, len, kCFStringEncodingUTF8, false);
+  }
+
+  *glyph = CTFontGetGlyphWithName(ct_font, cf_name_str);
+  CFRelease(cf_name_str);
+
+  return *glyph != 0;
+}
+
+static hb_font_funcs_t *
+_hb_coretext_get_font_funcs (void)
+{
+  static const hb_font_funcs_t coretext_ffuncs = {
+    HB_OBJECT_HEADER_STATIC,
+
+    true, /* immutable */
+
+    {
+#define HB_FONT_FUNC_IMPLEMENT(name) hb_coretext_get_##name,
+      HB_FONT_FUNCS_IMPLEMENT_CALLBACKS
+#undef HB_FONT_FUNC_IMPLEMENT
+    }
+  };
+
+  return const_cast<hb_font_funcs_t *> (&coretext_ffuncs);
+}
+
+void
+hb_coretext_font_set_funcs (hb_font_t *font)
+{
+  hb_font_set_funcs (font,
+      _hb_coretext_get_font_funcs (),
+      NULL,
+      (hb_destroy_func_t) NULL);
+}
 
 /*
  * shaper
